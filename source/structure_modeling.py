@@ -67,3 +67,65 @@ def torch_geometric_data_from_graph(G, df, labels_nr, train_len, val_len, test_l
     test_mask[idx[train_len+val_len:train_len+val_len+test_len]] = True
     data.test_mask=test_mask
     return data
+
+
+
+# Function computes the Laplacian matrix based on the given graph representation
+#
+# A - connected graph represented by adjacency matrix
+# returns: Laplacian matrix
+def graphLaplacian(A):
+    D = np.eye(A.shape[0]) * A.sum(axis=0)  # diagonal matrix of degrees
+    return D  - A                           # L = D - A
+    
+    
+# Function calculates eigenvalues and eigenvectors of Laplacian matrix
+#
+# L - Laplacian matrix representation
+# returns: eigenvalues and eigenvectors
+def calculateEigenVectorsOfGraphLaplacian(L):
+    eigenValues, eigenVectors = np.linalg.eig(L)
+    eigenValues, eigenVectors = eigenValues.real, eigenVectors.real
+    
+    idx = eigenValues.argsort()[::1]   
+    eigenValues = eigenValues[idx]
+    eigenVectors = eigenVectors[:, idx]
+    
+    return eigenValues, eigenVectors
+    
+    
+# Function prepares node representation
+#
+# eigenVectors - eigenvectors of Laplacian matrix
+# nodeRepresentationDim - dimension of representation
+# n_of_components=1 - number of connected components in the graph
+# returns: node representation
+def nodeRepresentation(eigenVectors, nodeRepresentationDim, n_of_components=1):
+    m = n_of_components                                         # we assume n of connected components = 1
+    Z = eigenVectors[:,m:(nodeRepresentationDim + m)]           # we omit m first eigenvectors, where m is the number of components of graph from A
+    return Z
+
+
+# Function prepares node representation used in trivial spectral clustering
+#
+# X - data set
+# M - number of neighbours used in KNN (initially 3)
+# nodeRepresentationDim - dimension of node representation (initially 3)
+# return: labels assigned to data
+def spectralNR(X, M, nodeRepresentationDim):
+    A = adjacencyMatrixUsingMnearestNeighbors(X, M=M)
+    A = connectTheGraph(A) # ensure the connectivity
+    L = graphLaplacian(A)
+    w,v = calculateEigenVectorsOfGraphLaplacian(L)
+    Z = nodeRepresentation(v,nodeRepresentationDim,n_of_components=1)
+    return Z
+
+
+def spectralRevisedAdjacencyMatrix(X, M1 = 5, Z_dim = 5, M2 = 5, force_connectivity = False):
+    
+    Z = spectralNR(X, M1, Z_dim) # calculates A, then uses laplacian egien vactors to create a new embedding
+    A = adjacencyMatrixUsingMnearestNeighbors(Z, M2) # a new adjacency matrix calculated using kNN
+    if force_connectivity:
+        A = connectTheGraph(A)
+    return A
+    
