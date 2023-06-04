@@ -1,3 +1,4 @@
+import numpy as np
 import torch
 from torch import nn
 # Install required packages.
@@ -15,7 +16,7 @@ from torch_geometric.nn import GCNConv, SAGEConv
 from torch.nn import Linear
 import torch.nn.functional as F
 
-def train(model, optimizer, criterion, data):
+def train_step(model, optimizer, criterion, data):
         model.train()
         optimizer.zero_grad()  # Clear gradients.
         out = model(data.x, data.edge_index)  # Perform a single forward pass.
@@ -24,15 +25,16 @@ def train(model, optimizer, criterion, data):
         optimizer.step()  # Update parameters based on gradients.
         return loss
 
-def validate(model, data):
+def valid_step(model, criterion, data):
         model.eval()
         out = model(data.x, data.edge_index)
+        valid_loss = criterion(out[data.valid_mask], data.y[data.valid_mask])  # Compute the loss solely based on the validation nodes.
         pred = out.argmax(dim=1)  # Use the class with highest probability.
         valid_correct = pred[data.valid_mask] == data.y[data.valid_mask]  # Check against ground-truth labels.
         valid_acc = int(valid_correct.sum()) / int(data.valid_mask.sum())  # Derive ratio of correct predictions.
-        return valid_acc
+        return valid_loss, valid_acc
 
-def test(model, data):
+def test_step(model, data):
         model.eval()
         out = model(data.x, data.edge_index)
         pred = out.argmax(dim=1)  # Use the class with highest probability.
@@ -40,14 +42,26 @@ def test(model, data):
         test_acc = int(test_correct.sum()) / int(data.test_mask.sum())  # Derive ratio of correct predictions.
         return test_acc
 
-def experiment(model, data, epochs):
+def train_model(model, data, epochs, es_patience=10, es_threshold=0.05):
     optimizer = torch.optim.Adam(model.parameters(), lr=0.01, weight_decay=5e-4)
     criterion = torch.nn.CrossEntropyLoss()
+    early_stopper = EarlyStopper(es_patience, es_threshold)
 
     for epoch in range(epochs):
-        loss = train(model, optimizer, criterion, data)
-        valid_accuracy = validate(model, data)
-        print(f'Epoch: {epoch:03d}, Loss: {loss:.4f}, Acc: {valid_accuracy:.4f}')
+
+        train_loss = train_step(model, optimizer, criterion, data)
+        valid_loss, valid_accuracy = valid_step(model, criterion, data)
+        print(f'Epoch: {epoch:03d}, Loss: {train_loss:.4f}, Acc: {valid_accuracy:.4f}')
+
+        if (early_stopper.step(valid_loss)==0):
+             #torch.save(model.state_dict(), weights_dir / "best.pt")
+             continue
+        elif(early_stopper.step(valid_loss)==1):
+            pass
+        else:
+            print(f"Early stopping at epoch {epoch}")
+            break
+
 
 
 class EarlyStopper:
