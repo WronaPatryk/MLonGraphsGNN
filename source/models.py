@@ -81,7 +81,7 @@ def train_model(model, data, epochs, es_patience=10, es_threshold=0.05):
     zipped = list(zip(epochs_list, train_losses, train_accuracies, valid_losses, valid_accuracies))
     metrics = pd.DataFrame(zipped, columns=['epoch', 'train_loss', 'train_acc', 'valid_loss', 'valid_acc'])
    
-    return model, metrics
+    return metrics
 
 
 
