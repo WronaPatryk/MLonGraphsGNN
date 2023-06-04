@@ -1,4 +1,5 @@
 import numpy as np
+import pandas as pd
 import torch
 from torch import nn
 # Install required packages.
@@ -20,10 +21,13 @@ def train_step(model, optimizer, criterion, data):
         model.train()
         optimizer.zero_grad()  # Clear gradients.
         out = model(data.x, data.edge_index)  # Perform a single forward pass.
-        loss = criterion(out[data.train_mask], data.y[data.train_mask])  # Compute the loss solely based on the training nodes.
-        loss.backward()  # Derive gradients.
+        train_loss = criterion(out[data.train_mask], data.y[data.train_mask])  # Compute the loss solely based on the training nodes.
+        train_loss.backward()  # Derive gradients.
         optimizer.step()  # Update parameters based on gradients.
-        return loss
+        pred = out.argmax(dim=1)  # Use the class with highest probability.
+        train_correct = pred[data.train_mask] == data.y[data.train_mask]  # Check against ground-truth labels.
+        train_acc = int(train_correct.sum()) / int(data.train_mask.sum())
+        return train_loss, train_acc
 
 def valid_step(model, criterion, data):
         model.eval()
@@ -34,7 +38,7 @@ def valid_step(model, criterion, data):
         valid_acc = int(valid_correct.sum()) / int(data.valid_mask.sum())  # Derive ratio of correct predictions.
         return valid_loss, valid_acc
 
-def test_step(model, data):
+def test(model, data):
         model.eval()
         out = model(data.x, data.edge_index)
         pred = out.argmax(dim=1)  # Use the class with highest probability.
@@ -47,20 +51,37 @@ def train_model(model, data, epochs, es_patience=10, es_threshold=0.05):
     criterion = torch.nn.CrossEntropyLoss()
     early_stopper = EarlyStopper(es_patience, es_threshold)
 
+    epochs_list=[]
+    train_losses=[]
+    train_accuracies=[]
+    valid_losses=[]
+    valid_accuracies=[]
+
+
     for epoch in range(epochs):
 
-        train_loss = train_step(model, optimizer, criterion, data)
+        train_loss, train_accuracy = train_step(model, optimizer, criterion, data)
         valid_loss, valid_accuracy = valid_step(model, criterion, data)
-        print(f'Epoch: {epoch:03d}, Loss: {train_loss:.4f}, Acc: {valid_accuracy:.4f}')
+
+        epochs_list.append(epoch)
+        train_losses.append(train_loss.item())
+        train_accuracies.append(train_accuracy)
+        valid_losses.append(valid_loss.item())
+        valid_accuracies.append(valid_accuracy)
+        print(f'Epoch: {epoch:03d}, Train loss: {train_loss:.4f}, Valid Acc: {valid_accuracy:.4f}')
 
         if (early_stopper.step(valid_loss)==0):
-             #torch.save(model.state_dict(), weights_dir / "best.pt")
              continue
         elif(early_stopper.step(valid_loss)==1):
             pass
         else:
             print(f"Early stopping at epoch {epoch}")
             break
+    
+    zipped = list(zip(epochs_list, train_losses, train_accuracies, valid_losses, valid_accuracies))
+    metrics = pd.DataFrame(zipped, columns=['epoch', 'train_loss', 'train_acc', 'valid_loss', 'valid_acc'])
+   
+    return model, metrics
 
 
 
