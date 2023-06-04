@@ -86,9 +86,23 @@ def visualize(h, color):
     plt.scatter(z[:, 0], z[:, 1], s=70, c=color, cmap="Set2")
     plt.show()
 
-def load_data_df(data_dir):
-    train_df = pd.read_csv(data_dir+"train.csv", header = None)
-    valid_df = pd.read_csv(data_dir+"valid.csv", header = None)
-    test_df = pd.read_csv(data_dir+"test.csv", header = None)
+def load_data_df(data_dir, header=None):
+    train_df = pd.read_csv(data_dir+"train.csv", header=header)
+    valid_df = pd.read_csv(data_dir+"valid.csv", header=header)
+    test_df = pd.read_csv(data_dir+"test.csv", header=header)
     df = pd.concat([train_df, valid_df, test_df])
     return df
+
+def describe_pyg_data(data):
+    print(f'Number of nodes: {data.num_nodes}')
+    print(f'Number of edges: {data.num_edges}')
+    print(f'Number of features: {data.num_features}')
+    print(f'Number of classes: {data.num_classes}')
+    print(f'Average node degree: {data.num_edges / data.num_nodes:.2f}')
+    print(f'Number of training nodes: {data.train_mask.sum()}')
+    print(f'Number of validation nodes: {data.valid_mask.sum()}')
+    print(f'Number of testing nodes: {data.test_mask.sum()}')
+    print(f'Training node label rate: {int(data.train_mask.sum()) / data.num_nodes:.2f}')
+    print(f'Has isolated nodes: {data.has_isolated_nodes()}')
+    print(f'Has self-loops: {data.has_self_loops()}')
+    print(f'Is undirected: {data.is_undirected()}')
