@@ -42,12 +42,17 @@ def s_vectorize3(s):
             
     return np.array(output_list) 
 
-def train_val_test_labels(dir, train_file, valid_file, test_file, header=None, index_col=None, pos = 0):
-    """ for raw_files, pos = 0, for spectrograms pos=1"""
+def train_val_test_lists(dir, train_file, valid_file, test_file, header=None, index_col=None):
+
     train_list = pd.read_csv(dir + train_file, header=header, index_col=index_col).iloc[:,0].values.tolist()
     test_list = pd.read_csv(dir + valid_file,  header=header, index_col=index_col).iloc[:,0].values.tolist()
     valid_list = pd.read_csv(dir + test_file, header=header, index_col=index_col).iloc[:,0].values.tolist()
-        
+
+    return train_list, test_list, valid_list
+
+def train_val_test_labels(dir, train_file, valid_file, test_file, header=None, index_col=None, pos = 0):
+    """ for raw_files, pos = 0, for spectrograms pos=1"""
+    train_list, test_list, valid_list = train_val_test_lists(dir, train_file, valid_file, test_file, header, index_col)
 
     labels_train = []
 
@@ -80,3 +85,10 @@ def visualize(h, color):
 
     plt.scatter(z[:, 0], z[:, 1], s=70, c=color, cmap="Set2")
     plt.show()
+
+def load_data_df(data_dir):
+    train_df = pd.read_csv(data_dir+"train.csv", header = None)
+    valid_df = pd.read_csv(data_dir+"valid.csv", header = None)
+    test_df = pd.read_csv(data_dir+"test.csv", header = None)
+    df = pd.concat([train_df, valid_df, test_df])
+    return df
